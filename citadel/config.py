@@ -9,8 +9,8 @@ from smart_getenv import getenv
 
 DEBUG = getenv('DEBUG', default=False, type=bool)
 FAKE_USER = {
-    'id': 10056,
-    'name': 'liuyifu',
+    'id': 10000,
+    'name': 'timfeirg',
     'real_name': 'timfeirg',
     'email': 'test@test.com',
     'privilege': 1,
@@ -29,19 +29,13 @@ MAKO_TRANSLATE_EXCEPTIONS = False
 AGENT_PORT = getenv('AGENT_PORT', default=12345, type=int)
 REDIS_URL = getenv('REDIS_URL', default='redis://127.0.0.1:6379/0')
 
-WHEREAMI = getenv('WHEREAMI', default='c2-eru-1')
 DEFAULT_ZONE = 'c2'
 BUILD_ZONE = 'c1'
 ZONE_CONFIG = {
-    'c1': {
+    'test-zone': {
         'ETCD_CLUSTER': (('10.10.70.31', 2379), ('10.10.65.251', 2379), ('10.10.145.201', 2379)),
         'GRPC_URL': '10.10.89.215:5001',
-        'ELB_DB': 'redis://***REMOVED***:6379',
-    },
-    'c2': {
-        'ETCD_CLUSTER': (('***REMOVED***', 2379), ('***REMOVED***', 2379), ('***REMOVED***', 2379)),
-        'GRPC_URL': '***REMOVED***:5001',
-        'ELB_DB': 'redis://***REMOVED***:6379',
+        'ELB_DB': 'redis://10.215.244.17:6379',
     },
 }
 
@@ -66,7 +60,6 @@ ELB_POD_NAME = getenv('ELB_POD_NAME', default='elb')
 CITADEL_HEALTH_CHECK_STATS_KEY = 'citadel:health'
 
 # some envs are managed by eru-core, should copy from
-# http://gitlab.ricebook.net/platform/core/blob/master/cluster/calcium/create_container.go#L541
 UPGRADE_CONTAINER_IGNORE_ENV = {
     'ERU_NODE_IP',
     'ERU_NODE_NAME',
