@@ -9,7 +9,7 @@ from citadel.libs.jsonutils import jsonize
 from citadel.libs.utils import logger
 from citadel.libs.view import DEFAULT_RETURN_VALUE, ERROR_CODES
 from citadel.models import Container
-from citadel.models.app import AppUserRelation, Release
+from citadel.models.app import Release
 from citadel.models.loadbalance import ELBRule, update_elb_for_containers, UpdateELBAction
 from citadel.models.oplog import OPType, OPLog
 from citadel.rpc import get_core
@@ -33,7 +33,7 @@ for code in ERROR_CODES:
 def delete_app_env(name):
     envname = request.form['env']
     app = bp_get_app(name)
-    OPLog.create(g.user.id, OPType.DELETE_ENV, app.name, content={'envname': envname})
+    OPLog.create(OPType.DELETE_ENV, app.name, content={'envname': envname})
     deleted = app.remove_env_set(envname)
     if not deleted:
         abort(404, 'App `%s` has no env `%s`' % (app.name, envname))
@@ -74,8 +74,7 @@ def deploy_release(release_id):
     )
     async_result = create_container.delay(deploy_options=deploy_options,
                                           sha=release.sha,
-                                          envname=envname,
-                                          user_id=g.user.id)
+                                          envname=envname)
     task_id = async_result.task_id
 
     def generate_stream_response():
@@ -136,7 +135,7 @@ def remove_containers():
         should_remove.append(c.container_id)
 
     if should_remove:
-        remove_container.delay(should_remove, user_id=g.user.id)
+        remove_container.delay(should_remove)
 
     return DEFAULT_RETURN_VALUE
 
@@ -165,7 +164,7 @@ def upgrade_containers():
     if ELB_APP_NAME in appnames:
         abort(400, 'Do not upgrade {} through this API'.format(ELB_APP_NAME))
 
-    async_results = [upgrade_container_dispatch.delay(c.container_id, sha, user_id=g.user.id) for c in containers]
+    async_results = [upgrade_container_dispatch.delay(c.container_id, sha) for c in containers]
     task_ids = [r.task_id for r in async_results]
     messages = chain(celery_task_stream_response(task_ids), celery_task_stream_traceback(task_ids))
     return Response(messages, mimetype='application/json')
@@ -183,7 +182,7 @@ def replace_containers():
     if ELB_APP_NAME in appnames:
         abort(400, 'Do not upgrade {} through this API'.format(ELB_APP_NAME))
 
-    async_results = [upgrade_container_dispatch.delay(c.container_id, c.sha, user_id=g.user.id) for c in containers]
+    async_results = [upgrade_container_dispatch.delay(c.container_id, c.sha) for c in containers]
     task_ids = [r.task_id for r in async_results]
     messages = chain(celery_task_stream_response(task_ids), celery_task_stream_traceback(task_ids))
     return Response(messages, mimetype='application/json')
@@ -212,7 +211,6 @@ def create_loadbalance():
     env_set = release.app.get_env_set(envname)
     env_vars = env_set.to_env_vars()
     name = env_set.get('ELBNAME', 'unnamed')
-    user_id = g.user.id
     sha = release.sha
 
     deploy_options = {
@@ -232,12 +230,10 @@ def create_loadbalance():
     try:
         grpc_message = create_container(deploy_options=deploy_options,
                                         sha=sha,
-                                        envname=envname,
-                                        user_id=user_id)[0]
+                                        envname=envname)[0]
         container_id = grpc_message['id']
         create_elb_instance_upon_containers(container_id, name, sha,
-                                            comment=payload['comment'],
-                                            user_id=user_id)
+                                            comment=payload['comment'])
     except ActionError as e:
         return {'error': str(e)}, 500
     return DEFAULT_RETURN_VALUE
@@ -251,7 +247,7 @@ def remove_loadbalance(id):
         elb.clear_rules()
 
     try:
-        remove_container(elb.container_id, user_id=g.user.id)
+        remove_container(elb.container_id)
         elb.delete()
     except ActionError as e:
         return {'error': str(e)}, 500
@@ -271,9 +267,6 @@ def delete_rule(name):
         return {'error': '这数据有问题，你快找平台看看'}, 500
 
     rule = rules[0]
-    if not AppUserRelation.user_permitted_to_app(g.user.id, name):
-        return {'error': 'You can\'t do this'}, 400
-
     if not rule.delete():
         return {'error': 'Error during delete rule'}, 500
 
@@ -286,10 +279,3 @@ def switch_zone():
     zone = request.values.get('zone', DEFAULT_ZONE)
     session['zone'] = zone
     return DEFAULT_RETURN_VALUE
-
-
-@bp.before_request
-def access_control():
-    # loadbalance和admin的不是admin就不要乱搞了
-    if not g.user.privilege and (request.path.startswith('/ajax/admin') or request.path.startswith('/ajax/loadbalance')):
-        abort(403, 'Only for admin')

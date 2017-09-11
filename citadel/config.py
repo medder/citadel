@@ -8,15 +8,6 @@ from smart_getenv import getenv
 
 
 DEBUG = getenv('DEBUG', default=False, type=bool)
-FAKE_USER = {
-    'id': 10000,
-    'name': 'timfeirg',
-    'real_name': 'timfeirg',
-    'email': 'test@test.com',
-    'privilege': 1,
-    'token': 'token',
-    'pubkey': '',
-}
 
 PROJECT_NAME = LOGGER_NAME = 'citadel'
 SERVER_NAME = getenv('SERVER_NAME')
@@ -45,14 +36,6 @@ SQLALCHEMY_TRACK_MODIFICATIONS = getenv('SQLALCHEMY_TRACK_MODIFICATIONS', defaul
 GITLAB_URL = getenv('GITLAB_URL', default='http://gitlab.ricebook.net')
 GITLAB_API_URL = getenv('GITLAB_API_URL', default='http://gitlab.ricebook.net/api/v3')
 GITLAB_PRIVATE_TOKEN = getenv('GITLAB_PRIVATE_TOKEN', default='')
-
-OAUTH2_BASE_URL = getenv('OAUTH2_BASE_URL', default='https://sso.ricebook.net/oauth/api/')
-OAUTH2_ACCESS_TOKEN_URL = getenv('OAUTH2_ACCESS_TOKEN_URL', default='https://sso.ricebook.net/oauth/token')
-OAUTH2_AUTHORIZE_URL = getenv('OAUTH2_AUTHORIZE_URL', default='https://sso.ricebook.net/oauth/authorize')
-OAUTH2_CLIENT_ID = getenv('OAUTH2_CLIENT_ID', default='')
-OAUTH2_CLIENT_SECRET = getenv('OAUTH2_CLIENT_SECRET', default='')
-AUTH_AUTHORIZE_URL = getenv('AUTH_AUTHORIZE_URL', default='https://sso.ricebook.net/auth/profile')
-AUTH_GET_USER_URL = getenv('AUTH_GET_USER_URL', default='https://sso.ricebook.net/auth/user')
 
 ELB_APP_NAME = getenv('ELB_APP_NAME', default='erulb3')
 ELB_BACKEND_NAME_DELIMITER = getenv('ELB_BACKEND_NAME_DELIMITER', default='___')

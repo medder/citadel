@@ -80,7 +80,7 @@ def deploy():
         debug=payload.get('debug'),
         extra_args=payload.get('extra_args'),
     )
-    async_result = create_container.delay(deploy_options, sha=payload['sha'], user_id=g.user.id, envname=envname)
+    async_result = create_container.delay(deploy_options, sha=payload['sha'], envname=envname)
     return Response(celery_task_stream_response(async_result.task_id), mimetype='application/json')
 
 
@@ -88,7 +88,7 @@ def deploy():
 def remove():
     data = AbortDict(request.get_json())
     ids = data['ids']
-    async_result = remove_container.delay(ids, user_id=g.user.id)
+    async_result = remove_container.delay(ids)
     return Response(celery_task_stream_response(async_result.task_id), mimetype='application/json')
 
 
@@ -99,7 +99,7 @@ def upgrade():
     repo = data['repo']
     sha = data['sha']
 
-    async_result = upgrade_container_dispatch.delay(ids, repo, sha, user_id=g.user.id)
+    async_result = upgrade_container_dispatch.delay(ids, repo, sha)
     return Response(celery_task_stream_response(async_result.task_id), mimetype='application/json')
 
 

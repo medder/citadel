@@ -11,7 +11,6 @@ from sqlalchemy.orm.exc import StaleDataError, ObjectDeletedError
 from citadel.config import UPGRADE_CONTAINER_IGNORE_ENV
 from citadel.ext import db, get_etcd
 from citadel.libs.datastructure import purge_none_val_from_dict
-from citadel.libs.mimiron import set_mimiron_route, del_mimiron_route
 from citadel.libs.utils import logger
 from citadel.models.base import BaseModelMixin, PropsMixin, PropsItem
 from citadel.rpc import get_core
@@ -61,11 +60,6 @@ class Container(BaseModelMixin, PropsMixin):
         except IntegrityError:
             db.session.rollback()
             return None
-
-        specs = c.release and c.release.specs
-        if specs:
-            set_mimiron_route(c.container_id, c.get_node(), specs.permitted_users)
-
         return c
 
     @classmethod
@@ -291,7 +285,6 @@ class Container(BaseModelMixin, PropsMixin):
 
     def delete(self):
         try:
-            del_mimiron_route(self.container_id)
             self.destroy_props()
             logger.debug('Delete container %s, name %s', self.container_id, self.name)
         except ObjectDeletedError:

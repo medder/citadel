@@ -2,7 +2,6 @@
 -i https://pypi.doubanio.com/simple/
 python-gitlab
 Flask
-Flask_OAuthlib
 Flask_SQLAlchemy
 Flask-Session
 Flask-Caching

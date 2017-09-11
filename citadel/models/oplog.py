@@ -5,7 +5,6 @@ from flask import g
 
 from citadel.ext import db
 from citadel.models.base import BaseModelMixin, Enum34
-from citadel.models.user import get_user
 
 
 class OPType(enum.Enum):
@@ -25,22 +24,18 @@ class OPLog(BaseModelMixin):
 
     __tablename__ = 'operation_log'
     zone = db.Column(db.CHAR(64), nullable=False, default='', index=True)
-    user_id = db.Column(db.Integer, nullable=False, default=0, index=True)
     appname = db.Column(db.CHAR(64), nullable=False, default='', index=True)
     sha = db.Column(db.CHAR(64), nullable=False, default='', index=True)
     action = db.Column(Enum34(OPType))
     content = db.Column(db.JSON)
 
     @classmethod
-    def get_by(cls, zone=None, user_id=None, appname=None, sha=None, action=None, time_window=None, start=0, limit=200):
-        """filter OPLog by user, action, or a tuple of 2 datetime as timewindow"""
+    def get_by(cls, zone=None, appname=None, sha=None, action=None, time_window=None, start=0, limit=200):
+        """filter OPLog by action, or a tuple of 2 datetime as timewindow"""
         try:
             filters = [(cls.zone == g.zone) | (cls.zone == '')]
         except AttributeError:
             filters = []
-
-        if user_id:
-            filters.append(cls.user_id == user_id)
 
         if appname:
             filters.append(cls.appname == appname)
@@ -67,9 +62,9 @@ class OPLog(BaseModelMixin):
         """
         if type_ == 'release':
             query = '''
-            SELECT min(created) AS created, user_id, appname, sha, action
+            SELECT min(created) AS created, appname, sha, action
             FROM operation_log
-            GROUP BY user_id, appname, sha, action
+            GROUP BY appname, sha, action
             ORDER BY created DESC
             '''
         else:
@@ -81,12 +76,11 @@ class OPLog(BaseModelMixin):
         return res
 
     @classmethod
-    def create(cls, user_id, action, appname='', sha='', zone='', content=None):
+    def create(cls, action, appname='', sha='', zone='', content=None):
         if content is None:
             content = {}
 
         op_log = cls(zone=zone,
-                     user_id=user_id,
                      appname=appname,
                      sha=sha,
                      action=action,
@@ -98,11 +92,6 @@ class OPLog(BaseModelMixin):
     @property
     def verbose_action(self):
         return self.action.name
-
-    @property
-    def user_real_name(self):
-        user = get_user(self.user_id)
-        return user and user.real_name
 
     @property
     def short_sha(self):

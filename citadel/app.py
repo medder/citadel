@@ -2,15 +2,14 @@
 import logging
 
 from celery import Celery, Task
-from flask import g, session, Flask, request, redirect, url_for
+from flask import g, session, Flask, request
 from raven.contrib.flask import Sentry
 from werkzeug.utils import import_string
 
-from citadel.config import DEBUG, SENTRY_DSN, TASK_PUBSUB_CHANNEL, TASK_PUBSUB_EOF, DEFAULT_ZONE, FAKE_USER
+from citadel.config import DEBUG, SENTRY_DSN, TASK_PUBSUB_CHANNEL, TASK_PUBSUB_EOF, DEFAULT_ZONE
 from citadel.ext import sess, rds, db, mako, cache
 from citadel.libs.datastructure import DateConverter
 from citadel.libs.utils import notbot_sendmsg
-from citadel.models.user import get_current_user, User
 
 
 if DEBUG:
@@ -26,7 +25,6 @@ logging.basicConfig(level=loglevel, format='[%(asctime)s] [%(process)d] [%(level
 blueprints = [
     'index',
     'app',
-    'user',
     'ajax',
     'admin',
     'loadbalance',
@@ -37,11 +35,9 @@ api_blueprints = [
     'pod',
     'container',
     'action',
-    'mimiron',
 ]
 
 ANONYMOUS_PATHS = [
-    '/user',
     '/health-check',
 ]
 
@@ -111,15 +107,6 @@ def create_app():
         g.start = request.args.get('start', type=int, default=0)
         g.limit = request.args.get('limit', type=int, default=20)
         g.zone = session.get('zone') or request.values.get('zone') or DEFAULT_ZONE
-
-        if DEBUG:
-            g.user = User.from_dict(FAKE_USER)
-        else:
-            g.user = get_current_user()
-
-        if not g.user and not anonymous_path(request.path):
-            session.pop('sso', None)
-            return redirect(url_for('user.login'))
 
     return app
 

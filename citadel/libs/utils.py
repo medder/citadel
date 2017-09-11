@@ -44,11 +44,6 @@ handle_etcd_exception = partial(handle_exception, (EtcdException, ValueError, Ke
 handle_gitlab_exception = partial(handle_exception, (GitlabError,))
 
 
-def login_user(user):
-    session['id'] = user.id
-    session['name'] = user.name
-
-
 def shorten_sentence(s, length=88):
     if len(s) > length:
         return s[:length]

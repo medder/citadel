@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import defaultdict
+
 from sqlalchemy import event, DDL
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import StaleDataError
@@ -14,7 +15,6 @@ from citadel.models.base import BaseModelMixin, PropsItem, ModelDeleteError, Pro
 from citadel.models.gitlab import get_project_name, get_file_content, get_commit
 from citadel.models.loadbalance import ELBRule
 from citadel.models.specs import Specs
-from citadel.models.user import User
 
 
 class EnvSet(dict):
@@ -55,12 +55,6 @@ class App(BaseModelMixin):
     @classmethod
     def get_by_name(cls, name):
         return cls.query.filter_by(name=name).first()
-
-    @classmethod
-    def get_by_user(cls, user_id):
-        """拿这个user可以有的app, 跟app自己的user_id没关系."""
-        names = AppUserRelation.get_appname_by_user_id(user_id)
-        return [cls.get_by_name(n) for n in names]
 
     @classmethod
     def get_apps_with_tackle_rule(cls):
@@ -171,8 +165,6 @@ class App(BaseModelMixin):
             raise ModelDeleteError('App {} is still running, containers {}, remove them before deleting app'.format(appname, containers))
         # delete all releases
         Release.query.filter_by(app_id=self.id).delete()
-        # delete all permissions
-        AppUserRelation.query.filter_by(appname=appname).delete()
         # delete all ELB rules
         rules = ELBRule.get_by(appname=appname)
         for rule in rules:
@@ -183,9 +175,6 @@ class App(BaseModelMixin):
     def get_associated_elb_rules(self, zone=DEFAULT_ZONE):
         from citadel.models.loadbalance import ELBRule
         return ELBRule.get_by(appname=self.name, zone=zone)
-
-    def get_permitted_user_ids(self):
-        return AppUserRelation.get_user_id_by_appname(self.name)
 
     def to_dict(self):
         d = super(App, self).to_dict()
@@ -238,24 +227,6 @@ class Release(BaseModelMixin, PropsMixin):
         if branch:
             new_release.branch = branch
 
-        # after the instance is created, manage app permission through combo
-        # permitted_users
-        permitted_users = set(new_release.get_permitted_users())
-        current_permitted_users = set(User.get(id_) for id_ in AppUserRelation.get_user_id_by_appname(appname))
-        come = permitted_users - current_permitted_users
-        gone = current_permitted_users - permitted_users
-        for u in come:
-            if not u:
-                continue
-            logger.debug('Grant %s to app %s', u, appname)
-            AppUserRelation.add(appname, u.id)
-
-        for u in gone:
-            if not u:
-                continue
-            logger.debug('Revoke %s to app %s', u, appname)
-            AppUserRelation.delete(appname, u.id)
-
         # create ELB routes, if there's any
         for combo in new_release.specs.combos.values():
             if not combo.elb:
@@ -278,11 +249,6 @@ class Release(BaseModelMixin, PropsMixin):
             raise ModelDeleteError('Release {} is still running, delete containers {} before deleting this release'.format(self.short_sha, container_list))
         logger.warn('Deleting release %s', self)
         return super(Release, self).delete()
-
-    def get_permitted_users(self):
-        usernames = self.specs.permitted_users
-        permitted_users = [User.get(u) for u in usernames]
-        return permitted_users
 
     @classmethod
     def get(cls, id):
@@ -402,49 +368,6 @@ class Release(BaseModelMixin, PropsMixin):
             'specs': self.specs,
         })
         return d
-
-
-class AppUserRelation(BaseModelMixin):
-    __tablename__ = 'app_user_relation'
-    __table_args__ = (
-        db.UniqueConstraint('user_id', 'appname'),
-    )
-
-    appname = db.Column(db.String(255), nullable=False, index=True)
-    user_id = db.Column(db.Integer, nullable=False)
-
-    @classmethod
-    def add(cls, appname, user_id):
-        try:
-            m = cls(appname=appname, user_id=user_id)
-            db.session.add(m)
-            db.session.commit()
-            return m
-        except IntegrityError:
-            db.session.rollback()
-            return None
-
-    @classmethod
-    def delete(cls, appname, user_id):
-        cls.query.filter_by(user_id=user_id, appname=appname).delete()
-        db.session.commit()
-
-    @classmethod
-    def get_user_id_by_appname(cls, appname):
-        rs = cls.query.filter_by(appname=appname).all()
-        return [r.user_id for r in rs]
-
-    @classmethod
-    def get_appname_by_user_id(cls, user_id):
-        rs = cls.query.filter_by(user_id=user_id).all()
-        return [r.appname for r in rs]
-
-    @classmethod
-    def user_permitted_to_app(cls, user_id, appname):
-        user = User.get(user_id)
-        if user.privilege:
-            return True
-        return bool(cls.query.filter_by(user_id=user_id, appname=appname).first())
 
 
 class AppStatusAssembler:

@@ -59,41 +59,22 @@
             <a href="${ url_for('index.oplog') }"><span class="fui-windows"></span> OPLog</a>
             </li>
           </ul>
-          % if g.user and g.user.privilege:
-
-            <li class="dropdown ${ 'active' if request.path.startswith(url_for('admin.index')) else '' }">
-            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
-              <span class="fui-eye"></span> Admin Area
-            </a>
-            <ul class="dropdown-menu">
-              <li class="${ 'active' if request.path.startswith('/loadbalance') else '' }">
-              <a href="${ url_for('loadbalance.index') }"><span class="fui-windows"></span> Load Balance</a>
-              </li>
-              <li class="divider"></li>
-              <li class="${ 'active' if request.path.startswith(url_for('admin.users')) else '' }">
-              <a href="${ url_for('admin.users') }"><span class="fui-user"></span> Users</a>
-              </li>
-              <li class="divider"></li>
-              <li class="${ 'active' if request.path.startswith(url_for('admin.pods')) else '' }">
-              <a href="${ url_for('admin.pods') }"><span class="fui-list-thumbnailed"></span> Pods</a>
-              </li>
-            </ul>
+          <li class="dropdown ${ 'active' if request.path.startswith(url_for('admin.index')) else '' }">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+            <span class="fui-eye"></span> Admin Area
+          </a>
+          <ul class="dropdown-menu">
+            <li class="${ 'active' if request.path.startswith('/loadbalance') else '' }">
+            <a href="${ url_for('loadbalance.index') }"><span class="fui-windows"></span> Load Balance</a>
             </li>
-          % endif
+            <li class="divider"></li>
+            <li class="${ 'active' if request.path.startswith(url_for('admin.pods')) else '' }">
+            <a href="${ url_for('admin.pods') }"><span class="fui-list-thumbnailed"></span> Pods</a>
+            </li>
+          </ul>
+          </li>
           <li>
           <a href="http://platform.docs.ricebook.net/citadel/" target="_blank"><span class="fui-question-circle"></span> 我不懂！</a>
-          </li>
-        </ul>
-        <ul class="nav navbar-nav navbar-right">
-          <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown">${ g.user and g.user.name or u'你谁啊' } <b class="caret"></b></a>
-          <ul class="dropdown-menu">
-            % if g.user:
-              <li><a href="${ url_for('user.logout') }"><span class="fui-power"></span> 再贱</a></li>
-            % else:
-              <li><a href="${ url_for('user.login') }"><span class="fui-user"></span> 大爷来玩啊</a></li>
-            % endif
-          </ul>
           </li>
         </ul>
       </div>

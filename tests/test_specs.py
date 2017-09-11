@@ -29,7 +29,6 @@ def make_specs(appname='test-ci',
                volumes=[],
                base='hub.ricebook.net',
                subscribers='#platform',
-               permitted_users=['liuyifu'],
                combos=default_combos,
                crontab=[],
                **kwargs):

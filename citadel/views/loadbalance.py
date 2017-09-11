@@ -8,7 +8,6 @@ from citadel.models.app import App, Release
 from citadel.models.base import ModelCreateError
 from citadel.models.loadbalance import ELBInstance, ELBRule, get_elb_client
 from citadel.rpc import get_core
-from citadel.views.helper import need_admin
 
 
 bp = create_page_blueprint('loadbalance', __name__, url_prefix='/loadbalance')
@@ -69,7 +68,6 @@ def elb(name):
 
 
 @bp.route('/<name>/edit', methods=['GET', 'POST'])
-@need_admin
 def edit_rule(name):
     domain = request.values['domain']
     if request.method == 'GET':
@@ -95,7 +93,6 @@ def edit_rule(name):
 
 
 @bp.route('/<name>/add-rule', methods=['POST'])
-@need_admin
 def add_rule(name):
     appname = request.form['appname']
     domain = _cleanse_domain(request.form['domain'])
@@ -109,7 +106,6 @@ def add_rule(name):
 
 
 @bp.route('/<name>/add-general-rule', methods=['POST'])
-@need_admin
 def add_general_rule(name):
     appname = request.form['appname']
     entrypoint = request.form['entrypoint']
@@ -128,7 +124,6 @@ def add_general_rule(name):
 
 
 @bp.route('/<name>/rule', methods=['GET'])
-@need_admin
 def rule(name):
     domain = request.args['domain']
     elb = get_elb_client(name, g.zone)

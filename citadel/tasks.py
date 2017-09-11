@@ -111,7 +111,7 @@ def build_image(self, repo, sha, uid='', artifact='', gitlab_build_id=''):
 
 
 @current_app.task(bind=True)
-def create_container(self, deploy_options=None, sha=None, user_id=None, envname=None):
+def create_container(self, deploy_options=None, sha=None, envname=None):
     appname = deploy_options['appname']
     app = App.get_by_name(appname)
     entrypoint = deploy_options['entrypoint']
@@ -145,8 +145,7 @@ def create_container(self, deploy_options=None, sha=None, user_id=None, envname=
             op_content = {'entrypoint': deploy_options['entrypoint'], 'envname': envname, 'networks': deploy_options['networks']}
             op_content.update(m.to_dict())
             op_content['cpu'] = deploy_options['cpu_quota']
-            OPLog.create(user_id,
-                         OPType.CREATE_CONTAINER,
+            OPLog.create(OPType.CREATE_CONTAINER,
                          appname=appname,
                          sha=sha,
                          zone=zone,
@@ -162,7 +161,7 @@ def create_container(self, deploy_options=None, sha=None, user_id=None, envname=
 
 
 @current_app.task(bind=True)
-def create_elb_instance_upon_containers(self, container_ids, name, sha, comment=None, user_id=None):
+def create_elb_instance_upon_containers(self, container_ids, name, sha, comment=None):
     if isinstance(container_ids, str):
         container_ids = container_ids,
 
@@ -177,8 +176,7 @@ def create_elb_instance_upon_containers(self, container_ids, name, sha, comment=
 
         # 记录oplog
         op_content = {'elbname': name, 'container_id': container.container_id}
-        OPLog.create(user_id,
-                     OPType.CREATE_ELB_INSTANCE,
+        OPLog.create(OPType.CREATE_ELB_INSTANCE,
                      appname=release.app.name,
                      sha=release.sha,
                      zone=container.zone,
@@ -186,7 +184,7 @@ def create_elb_instance_upon_containers(self, container_ids, name, sha, comment=
 
 
 @current_app.task(bind=True)
-def remove_container(self, ids, user_id=None):
+def remove_container(self, ids):
     if isinstance(ids, str):
         ids = [ids]
 
@@ -222,8 +220,7 @@ def remove_container(self, ids, user_id=None):
             container.delete()
             # 记录oplog
             op_content = {'container_id': m.id}
-            OPLog.create(user_id,
-                         OPType.REMOVE_CONTAINER,
+            OPLog.create(OPType.REMOVE_CONTAINER,
                          appname=container.appname,
                          sha=container.sha,
                          zone=container.zone,
@@ -242,7 +239,7 @@ def remove_container(self, ids, user_id=None):
 
 
 @current_app.task(bind=True)
-def upgrade_container_dispatch(self, container_id, sha, user_id=None):
+def upgrade_container_dispatch(self, container_id, sha):
     container = Container.get_by_container_id(container_id)
     release = container.app.get_release(sha)
     if not release or not release.image:
@@ -260,37 +257,33 @@ def upgrade_container_dispatch(self, container_id, sha, user_id=None):
         smooth_upgrade_container(container_id,
                                  sha,
                                  deploy_options,
-                                 channel_name,
-                                 user_id=user_id)
+                                 channel_name)
     else:
         upgrade_container(container_id,
                           sha,
                           deploy_options,
-                          channel_name,
-                          user_id=user_id)
+                          channel_name)
 
 
-def upgrade_container(container_id, sha, deploy_options, channel_name, user_id=None):
+def upgrade_container(container_id, sha, deploy_options, channel_name):
     """Remove old container, and then start new one only after the old one's removed"""
     rds.publish(channel_name, make_sentence_json('Removing old container {} ...'.format(container_id)))
-    remove_container(container_id, user_id=user_id)
+    remove_container(container_id)
 
     rds.publish(channel_name, make_sentence_json('Starting new container to replace {} ...'.format(container_id)))
     grpc_message = create_container(deploy_options,
                                     sha=sha,
-                                    user_id=user_id,
                                     envname='SAME')[0]
     new_container_id = grpc_message['id']
     rds.publish(channel_name, make_sentence_json('New container created: {}'.format(new_container_id)))
 
 
-def smooth_upgrade_container(container_id, sha, deploy_options, channel_name, user_id=None):
+def smooth_upgrade_container(container_id, sha, deploy_options, channel_name):
     """Start new container, wait for it to become healthy, then remove the old one"""
     container = Container.get_by_container_id(container_id)
     rds.publish(channel_name, make_sentence_json('Starting new container to replace {} ...'.format(container_id)))
     grpc_message = create_container(deploy_options,
                                     sha=sha,
-                                    user_id=user_id,
                                     envname='SAME')[0]
     rds.publish(channel_name, json.dumps(grpc_message, cls=JSONEncoder) + '\n')
     if not grpc_message['success']:
@@ -303,10 +296,10 @@ def smooth_upgrade_container(container_id, sha, deploy_options, channel_name, us
     healthy = new_container.wait_for_erection(new_container.release.erection_timeout)
     if healthy:
         rds.publish(channel_name, make_sentence_json('New container {} OK, remove old container {}'.format(new_container_id, container_id)))
-        remove_container(container_id, user_id=user_id)
+        remove_container(container_id)
     else:
         rds.publish(channel_name, make_sentence_json('New container {} still sick, have to remove ...'.format(new_container_id)))
-        remove_container(new_container_id, user_id=user_id)
+        remove_container(new_container_id)
 
 
 @current_app.task(bind=True)

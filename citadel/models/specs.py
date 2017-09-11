@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
+from numbers import Number
+
 import yaml
 from crontab import CronTab
 from humanfriendly import InvalidTimespan, parse_timespan, parse_size
 from humanize import naturalsize
 from marshmallow import Schema, fields, validates_schema, ValidationError
-from numbers import Number
 
 from citadel.config import ZONE_CONFIG, DEFAULT_ZONE
 from citadel.libs.jsonutils import Jsonized
@@ -271,7 +272,6 @@ class SpecsSchema(StrictSchema):
     volumes = fields.List(fields.Str())
     base = fields.Str(required=True)
     combos = fields.Function(deserialize=parse_combos, missing={})
-    permitted_users = fields.List(fields.Str(), missing=[])
     subscribers = fields.Str(required=True)
     erection_timeout = fields.Function(deserialize=better_parse_timespan, missing=FIVE_MINUTES)
     freeze_node = fields.Bool(missing=False)
@@ -289,16 +289,15 @@ class Specs(Jsonized):
     exclude_from_dump = ['crontab']
 
     def __init__(self, appname=None, entrypoints={}, build=None, volumes=None,
-                 base=None, combos={}, permitted_users=None, subscribers=None,
-                 erection_timeout=None, freeze_node=None, smooth_upgrade=None,
-                 crontab=None, _raw=None):
+                 base=None, combos={}, subscribers=None, erection_timeout=None,
+                 freeze_node=None, smooth_upgrade=None, crontab=None,
+                 _raw=None):
         self.appname = appname
         self.entrypoints = {entrypoint_name: Entrypoint(_raw=data, **data) for entrypoint_name, data in entrypoints.items()}
         self.build = build
         self.volumes = volumes
         self.base = base
         self.combos = {combo_name: Combo(_raw=data, **data) for combo_name, data in combos.items()}
-        self.permitted_users = set(permitted_users)
         self.subscribers = subscribers
         self.erection_timeout = erection_timeout
         self.freeze_node = freeze_node
