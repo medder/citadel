@@ -9,7 +9,7 @@
 	* [权限控制](docs/user-docs/security-and-permissions.md)
 	* [部署套餐](docs/user-docs/combos.md)
 	* [订阅容器状态](docs/user-docs/subscribers.md)
-	* [健康检查](docs/user-docs/healthcheck.md)
+	* [健康检查/平滑升级](docs/user-docs/healthcheck.md)
 	* [多机房支持](docs/user-docs/zone.md)
 	* [定时备份容器目录](docs/user-docs/backup.md)
 	* [定时任务功能](docs/user-docs/crontab.md)
